@@ -4,12 +4,14 @@ import datetime
 
 class User(db.Model):
     __tablename__ = 'users'
-
     id = db.Column(db.Integer, primary_key=True)
     username = db.Column(db.String(64), unique=True, index=True, nullable=False)
     email = db.Column(db.String(120), unique=True, index=True, nullable=False)
     password_hash = db.Column(db.String(256))
     created_at = db.Column(db.DateTime, default=datetime.datetime.utcnow)
+    
+    # Relationship
+    posts = db.relationship('Post', backref='author', lazy='dynamic')
 
     def set_password(self, password):
         self.password_hash = generate_password_hash(password)
@@ -23,4 +25,23 @@ class User(db.Model):
             'username': self.username,
             'email': self.email,
             'created_at': self.created_at.isoformat()
+        }
+
+class Post(db.Model):
+    __tablename__ = 'posts'
+    id = db.Column(db.Integer, primary_key=True)
+    title = db.Column(db.String(140), nullable=False)
+    content = db.Column(db.Text, nullable=False)
+    slug = db.Column(db.String(140), index=True, unique=True, nullable=False)
+    timestamp = db.Column(db.DateTime, index=True, default=datetime.datetime.utcnow)
+    user_id = db.Column(db.Integer, db.ForeignKey('users.id'))
+
+    def to_dict(self):
+        return {
+            'id': self.id,
+            'title': self.title,
+            'content': self.content,
+            'slug': self.slug,
+            'timestamp': self.timestamp.isoformat(),
+            'author': self.author.username
         }
