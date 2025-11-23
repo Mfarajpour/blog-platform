@@ -19,6 +19,10 @@ def create_app(config_name='default'):
     from .blog import blog_bp
     app.register_blueprint(blog_bp, url_prefix='/blog')
 
+    # Upload Blueprint
+    from .upload import upload_bp
+    app.register_blueprint(upload_bp, url_prefix='/upload')
+
     @app.route('/health')
     def health_check():
         try:
