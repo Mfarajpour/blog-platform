@@ -1,0 +1,68 @@
+version: '3.8'
+
+services:
+  backend:
+    build: ./backend
+    container_name: blog-backend
+    restart: always
+    ports:
+      - "5000:5000"
+    environment:
+      - FLASK_CONFIG=production
+      - SECRET_KEY=prod-secret-key
+      - DATABASE_URL=postgresql://blog_user:blog_pass@db:5432/blog_db
+      # Internal URL for Boto3 to upload files
+      - S3_ENDPOINT=http://minio:9000
+      - S3_ACCESS_KEY=minioadmin
+      - S3_SECRET_KEY=minioadmin
+      - S3_BUCKET=blog-images
+      - S3_REGION=us-east-1
+    depends_on:
+      - db
+      - minio
+    networks:
+      - blog-network
+
+  db:
+    image: postgres:15-alpine
+    container_name: blog-db
+    restart: always
+    environment:
+      - POSTGRES_USER=blog_user
+      - POSTGRES_PASSWORD=blog_pass
+      - POSTGRES_DB=blog_db
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    networks:
+      - blog-network
+
+  minio:
+    image: minio/minio
+    container_name: blog-minio
+    restart: always
+    ports:
+      - "9000:9000"
+      - "9001:9001"
+    environment:
+      - MINIO_ROOT_USER=minioadmin
+      - MINIO_ROOT_PASSWORD=minioadmin
+    command: server /data --console-address ":9001"
+    volumes:
+      - minio_data:/data
+    networks:
+      - blog-network
+
+  redis:
+    image: redis:7-alpine
+    container_name: blog-redis
+    restart: always
+    networks:
+      - blog-network
+
+networks:
+  blog-network:
+    driver: bridge
+
+volumes:
+  postgres_data:
+  minio_data:
