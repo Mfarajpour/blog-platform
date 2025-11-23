@@ -1,16 +1,81 @@
-const { createApp, ref, onMounted } = Vue;
+const { createApp, ref, reactive, onMounted } = Vue;
 
-const API_URL = 'http://YOUR_PUBLIC_IP:5000'; // <--- CHANGE THIS TO YOUR SERVER IP
+
+const API_URL = 'http://91.107.243.217:5000'; 
 
 createApp({
     setup() {
+        // --- State ---
         const currentView = ref('home');
         const posts = ref([]);
         const loading = ref(false);
+        const errorMessage = ref('');
+        
         const token = ref(localStorage.getItem('token'));
         const user = ref(JSON.parse(localStorage.getItem('user') || '{}'));
 
-        // Fetch Public Posts
+        // --- Form Objects (Reactive) ---
+    
+        const loginForm = reactive({
+            username: '',
+            password: ''
+        });
+
+        const registerForm = reactive({
+            username: '',
+            email: '',
+            password: ''
+        });
+
+        // --- Auth Methods ---
+        const handleLogin = async () => {
+            errorMessage.value = '';
+            try {
+                const response = await axios.post(`${API_URL}/auth/login`, loginForm);
+                
+                token.value = response.data.token;
+                user.value = response.data.user;
+                
+                localStorage.setItem('token', token.value);
+                localStorage.setItem('user', JSON.stringify(user.value));
+                
+                currentView.value = 'dashboard';
+                
+                // Reset form
+                loginForm.username = '';
+                loginForm.password = '';
+            } catch (error) {
+                console.error(error);
+                errorMessage.value = error.response?.data?.error || 'Login failed';
+            }
+        };
+
+        const handleRegister = async () => {
+            errorMessage.value = '';
+            try {
+                await axios.post(`${API_URL}/auth/register`, registerForm);
+                alert('Registration successful! Please login.');
+                currentView.value = 'login';
+                
+                // Reset form
+                registerForm.username = '';
+                registerForm.email = '';
+                registerForm.password = '';
+            } catch (error) {
+                console.error(error);
+                errorMessage.value = error.response?.data?.error || 'Registration failed';
+            }
+        };
+
+        const logout = () => {
+            localStorage.removeItem('token');
+            localStorage.removeItem('user');
+            token.value = null;
+            user.value = null;
+            currentView.value = 'home';
+        };
+
+        // --- Blog Methods ---
         const fetchPosts = async () => {
             loading.value = true;
             try {
@@ -24,34 +89,42 @@ createApp({
         };
 
         const formatDate = (dateString) => {
+            if (!dateString) return '';
             return new Date(dateString).toLocaleDateString();
         };
 
-        const logout = () => {
-            localStorage.removeItem('token');
-            localStorage.removeItem('user');
-            token.value = null;
-            user.value = null;
-            currentView.value = 'home';
-        };
-        
         const viewPost = (post) => {
-            console.log("Viewing post:", post.slug);
-            // We will implement single post view later
+            console.log("View post:", post);
         };
 
+        const setView = (viewName) => {
+            currentView.value = viewName;
+            errorMessage.value = '';
+        };
+
+        // Initial Load
         onMounted(() => {
             fetchPosts();
         });
 
+        // --- RETURN EVERYTHING ---
         return {
             currentView,
             posts,
             loading,
+            errorMessage,
             token,
             user,
-            formatDate,
+            // Forms
+            loginForm,
+            registerForm,
+            // Methods
+            setView,
+            handleLogin,
+            handleRegister,
             logout,
+            fetchPosts,
+            formatDate,
             viewPost
         };
     }

@@ -3,76 +3,110 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Multi-Tenant Blog Platform</title>
-    
-    <!-- Tailwind CSS -->
+    <title>Multi-Tenant Blog</title>
     <script src="https://cdn.tailwindcss.com"></script>
-    
-    <!-- Vue 3 -->
     <script src="https://unpkg.com/vue@3/dist/vue.global.js"></script>
-    
-    <!-- Axios -->
     <script src="https://cdn.jsdelivr.net/npm/axios/dist/axios.min.js"></script>
-    
-    <!-- Marked.js for Markdown Rendering -->
-    <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
-
-    <style>
-        [v-cloak] { display: none; }
-        .markdown-body img { max-width: 100%; }
-    </style>
+    <style>[v-cloak] { display: none; } body { cursor: default; } a, button { cursor: pointer; }</style>
 </head>
 <body class="bg-gray-100 text-gray-800">
     
     <div id="app" v-cloak>
-        <!-- Navigation -->
-        <nav class="bg-white shadow mb-8">
+        <!-- NAV -->
+        <nav class="bg-white shadow mb-8 sticky top-0 z-50">
             <div class="container mx-auto px-4 py-4 flex justify-between items-center">
-                <a href="#" @click="currentView = 'home'" class="text-xl font-bold text-blue-600">Blog Platform</a>
+                <a @click="setView('home')" class="text-xl font-bold text-blue-600">Blog Platform</a>
                 
-                <div>
+                <div class="flex items-center space-x-4">
                     <template v-if="!token">
-                        <a href="#" @click="currentView = 'login'" class="mr-4 hover:text-blue-600">Login</a>
-                        <a href="#" @click="currentView = 'register'" class="bg-blue-600 text-white px-4 py-2 rounded hover:bg-blue-700">Get Started</a>
+                        <a @click="setView('login')" class="text-gray-600 hover:text-blue-600">Login</a>
+                        <a @click="setView('register')" class="bg-blue-600 text-white px-4 py-2 rounded hover:bg-blue-700">Get Started</a>
                     </template>
                     <template v-else>
-                        <span class="mr-4 text-gray-600">Welcome, {{ user?.username }}</span>
-                        <a href="#" @click="currentView = 'dashboard'" class="mr-4 hover:text-blue-600">Dashboard</a>
-                        <a href="#" @click="logout" class="text-red-500 hover:text-red-700">Logout</a>
+                        <span class="text-sm text-gray-500 hidden md:inline">Hi, {{ user?.username }}</span>
+                        <a @click="setView('dashboard')" class="text-gray-600 hover:text-blue-600">Dashboard</a>
+                        <a @click="logout" class="text-red-500 hover:text-red-700">Logout</a>
                     </template>
                 </div>
             </div>
         </nav>
 
-        <!-- Main Content Area -->
-        <div class="container mx-auto px-4">
+        <!-- CONTENT -->
+        <div class="container mx-auto px-4 pb-12">
             
-            <!-- Home View (Public Posts) -->
+            <!-- HOME -->
             <div v-if="currentView === 'home'">
-                <h1 class="text-3xl font-bold mb-6">Latest Posts</h1>
-                <div v-if="loading" class="text-center">Loading...</div>
+                <div class="flex justify-between items-end mb-6">
+                    <h1 class="text-3xl font-bold">Latest Posts</h1>
+                    <button @click="fetchPosts" class="text-blue-500 text-sm">Refresh</button>
+                </div>
                 
-                <div v-else class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                <div v-if="loading">Loading...</div>
+                <div v-else-if="posts.length === 0" class="text-gray-500">No posts found.</div>
+                
+                <div v-else class="grid md:grid-cols-3 gap-6">
                     <div v-for="post in posts" :key="post.id" class="bg-white p-6 rounded shadow hover:shadow-lg transition">
-                        <h2 class="text-xl font-bold mb-2">{{ post.title }}</h2>
-                        <p class="text-gray-500 text-sm mb-4">By {{ post.author }} on {{ formatDate(post.timestamp) }}</p>
-                        <p class="text-gray-700 truncate">{{ post.content.substring(0, 100) }}...</p>
-                        <button @click="viewPost(post)" class="mt-4 text-blue-600 hover:underline">Read More</button>
+                        <h2 class="text-xl font-bold">{{ post.title }}</h2>
+                        <p class="text-sm text-gray-500 mb-2">By {{ post.author }}</p>
+                        <p>{{ post.content.substring(0, 100) }}...</p>
                     </div>
                 </div>
             </div>
 
-            <!-- Placeholder for other views -->
-            <div v-if="currentView === 'login'">
-                <h2 class="text-2xl">Login Page (Coming Soon)</h2>
+            <!-- LOGIN -->
+            <div v-if="currentView === 'login'" class="max-w-md mx-auto bg-white p-8 rounded shadow mt-10">
+                <h2 class="text-2xl font-bold mb-6 text-center">Login</h2>
+                <form @submit.prevent="handleLogin">
+                    <div class="mb-4">
+                        <label class="block mb-2 text-sm font-bold">Username</label>
+                        <input v-model="loginForm.username" type="text" class="w-full border p-2 rounded" required>
+                    </div>
+                    <div class="mb-6">
+                        <label class="block mb-2 text-sm font-bold">Password</label>
+                        <input v-model="loginForm.password" type="password" class="w-full border p-2 rounded" required>
+                    </div>
+                    <button type="submit" class="w-full bg-blue-600 text-white py-2 rounded hover:bg-blue-700">Sign In</button>
+                    
+                    <p v-if="errorMessage" class="mt-4 text-red-500 text-center text-sm">{{ errorMessage }}</p>
+                    <div class="mt-4 text-center text-sm">
+                        <a @click="setView('register')" class="text-blue-500">Create an account</a>
+                    </div>
+                </form>
             </div>
-             <div v-if="currentView === 'register'">
-                <h2 class="text-2xl">Register Page (Coming Soon)</h2>
+
+            <!-- REGISTER -->
+            <div v-if="currentView === 'register'" class="max-w-md mx-auto bg-white p-8 rounded shadow mt-10">
+                <h2 class="text-2xl font-bold mb-6 text-center">Register</h2>
+                <form @submit.prevent="handleRegister">
+                    <div class="mb-4">
+                        <label class="block mb-2 text-sm font-bold">Username</label>
+                        <input v-model="registerForm.username" type="text" class="w-full border p-2 rounded" required>
+                    </div>
+                    <div class="mb-4">
+                        <label class="block mb-2 text-sm font-bold">Email</label>
+                        <input v-model="registerForm.email" type="email" class="w-full border p-2 rounded" required>
+                    </div>
+                    <div class="mb-6">
+                        <label class="block mb-2 text-sm font-bold">Password</label>
+                        <input v-model="registerForm.password" type="password" class="w-full border p-2 rounded" required>
+                    </div>
+                    <button type="submit" class="w-full bg-green-600 text-white py-2 rounded hover:bg-green-700">Sign Up</button>
+                    
+                    <p v-if="errorMessage" class="mt-4 text-red-500 text-center text-sm">{{ errorMessage }}</p>
+                    <div class="mt-4 text-center text-sm">
+                        <a @click="setView('login')" class="text-blue-500">Already have an account?</a>
+                    </div>
+                </form>
             </div>
+
+            <!-- DASHBOARD -->
+            <div v-if="currentView === 'dashboard'" class="bg-white p-6 rounded shadow">
+                <h1 class="text-2xl font-bold">Dashboard</h1>
+                <p class="mt-2">Welcome back, <span class="font-bold">{{ user?.username }}</span>!</p>
+            </div>
+
         </div>
     </div>
-
-    <!-- App Logic -->
     <script src="js/app.js"></script>
 </body>
 </html>
