@@ -15,6 +15,9 @@ def create_app(config_name='default'):
     # Register Blueprints
     from .auth import auth_bp
     app.register_blueprint(auth_bp, url_prefix='/auth')
+    
+    from .blog import blog_bp
+    app.register_blueprint(blog_bp, url_prefix='/blog')
 
     @app.route('/health')
     def health_check():
