@@ -11,7 +11,9 @@ def create_app(config_name='default'):
     # Initialize Extensions
     db.init_app(app)
     migrate.init_app(app, db)
-    
+
+    from . import models 
+
     # Health Check Route
     @app.route('/health')
     def health_check():
