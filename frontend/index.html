@@ -100,9 +100,53 @@
             </div>
 
             <!-- DASHBOARD -->
-            <div v-if="currentView === 'dashboard'" class="bg-white p-6 rounded shadow">
-                <h1 class="text-2xl font-bold">Dashboard</h1>
-                <p class="mt-2">Welcome back, <span class="font-bold">{{ user?.username }}</span>!</p>
+	                <!-- DASHBOARD VIEW -->
+            <div v-if="currentView === 'dashboard'" class="max-w-4xl mx-auto">
+                <div class="flex justify-between items-center mb-8">
+                    <h1 class="text-3xl font-bold">Dashboard</h1>
+                    <span class="text-gray-600">Welcome, {{ user?.username }}</span>
+                </div>
+
+                <!-- Create Post Form -->
+                <div class="bg-white p-6 rounded shadow mb-8">
+                    <h2 class="text-xl font-bold mb-4">Write a New Post</h2>
+                    <form @submit.prevent="handleCreatePost">
+                        <div class="mb-4">
+                            <label class="block text-sm font-bold mb-2">Title</label>
+                            <input v-model="postForm.title" type="text" class="w-full border p-2 rounded focus:outline-none focus:border-blue-500" placeholder="Enter post title..." required>
+                        </div>
+
+                        <div class="mb-4">
+                            <label class="block text-sm font-bold mb-2">Content (Markdown supported)</label>
+                            
+                            <!-- Image Upload Button -->
+                            <div class="mb-2">
+                                <label class="cursor-pointer bg-gray-200 hover:bg-gray-300 text-gray-700 px-4 py-1 rounded text-sm inline-flex items-center transition">
+                                    <span>📷 Upload Image</span>
+                                    <input type="file" @change="handleImageUpload" class="hidden" accept="image/*">
+                                </label>
+                                <span v-if="uploadingImage" class="text-sm text-blue-500 ml-2">Uploading...</span>
+                            </div>
+
+                            <textarea v-model="postForm.content" rows="8" class="w-full border p-2 rounded focus:outline-none focus:border-blue-500 font-mono" placeholder="Write your thoughts..." required></textarea>
+                        </div>
+
+
+                        <div class="flex justify-between items-center">
+                            <button type="submit" class="bg-blue-600 text-white px-6 py-2 rounded hover:bg-blue-700 transition">
+                                Publish Post
+                            </button>
+                            <!-- Loading Indicator -->
+                            <span v-if="creatingPost" class="text-gray-500 text-sm">Publishing...</span>
+                        </div>
+                    </form>
+                </div>
+
+                <!-- User's Posts List (Placeholder for next step) -->
+                <div class="bg-white p-6 rounded shadow">
+                    <h2 class="text-xl font-bold mb-4">Your Recent Posts</h2>
+                    <p class="text-gray-500">List of your posts will appear here.</p>
+                </div>
             </div>
 
         </div>

@@ -1,6 +1,5 @@
 const { createApp, ref, reactive, onMounted } = Vue;
 
-
 const API_URL = 'http://91.107.243.217:5000'; 
 
 createApp({
@@ -10,42 +9,83 @@ createApp({
         const posts = ref([]);
         const loading = ref(false);
         const errorMessage = ref('');
+        const creatingPost = ref(false);
+        const uploadingImage = ref(false); 
         
         const token = ref(localStorage.getItem('token'));
         const user = ref(JSON.parse(localStorage.getItem('user') || '{}'));
 
-        // --- Form Objects (Reactive) ---
-    
-        const loginForm = reactive({
-            username: '',
-            password: ''
-        });
+        // --- Forms ---
+        const loginForm = reactive({ username: '', password: '' });
+        const registerForm = reactive({ username: '', email: '', password: '' });
+        const postForm = reactive({ title: '', content: '' });
 
-        const registerForm = reactive({
-            username: '',
-            email: '',
-            password: ''
-        });
+        // --- Methods ---
 
-        // --- Auth Methods ---
+        // NEW: Handle Image Upload
+        const handleImageUpload = async (event) => {
+            const file = event.target.files[0];
+            if (!file) return;
+
+            uploadingImage.value = true;
+            const formData = new FormData();
+            formData.append('file', file);
+
+            try {
+                const headers = { 
+                    'Authorization': `Bearer ${token.value}`,
+                    'Content-Type': 'multipart/form-data'
+                };
+                
+                const response = await axios.post(`${API_URL}/upload/`, formData, { headers });
+                const imageUrl = response.data.url;
+
+                // Append markdown to content
+                const imageMarkdown = `\n![Image](${imageUrl})\n`;
+                postForm.content += imageMarkdown;
+                
+            } catch (error) {
+                console.error(error);
+                alert('Image upload failed');
+            } finally {
+                uploadingImage.value = false;
+                // Reset input value to allow re-uploading same file if needed
+                event.target.value = '';
+            }
+        };
+
+        const handleCreatePost = async () => {
+            if (!token.value) return;
+            creatingPost.value = true;
+            errorMessage.value = '';
+            try {
+                const headers = { Authorization: `Bearer ${token.value}` };
+                await axios.post(`${API_URL}/blog/posts`, postForm, { headers });
+                alert('Post published successfully!');
+                postForm.title = '';
+                postForm.content = '';
+                fetchPosts();
+                currentView.value = 'home';
+            } catch (error) {
+                console.error(error);
+                alert('Failed to publish post.');
+            } finally {
+                creatingPost.value = false;
+            }
+        };
+
         const handleLogin = async () => {
             errorMessage.value = '';
             try {
                 const response = await axios.post(`${API_URL}/auth/login`, loginForm);
-                
                 token.value = response.data.token;
                 user.value = response.data.user;
-                
                 localStorage.setItem('token', token.value);
                 localStorage.setItem('user', JSON.stringify(user.value));
-                
                 currentView.value = 'dashboard';
-                
-                // Reset form
                 loginForm.username = '';
                 loginForm.password = '';
             } catch (error) {
-                console.error(error);
                 errorMessage.value = error.response?.data?.error || 'Login failed';
             }
         };
@@ -56,13 +96,10 @@ createApp({
                 await axios.post(`${API_URL}/auth/register`, registerForm);
                 alert('Registration successful! Please login.');
                 currentView.value = 'login';
-                
-                // Reset form
                 registerForm.username = '';
                 registerForm.email = '';
                 registerForm.password = '';
             } catch (error) {
-                console.error(error);
                 errorMessage.value = error.response?.data?.error || 'Registration failed';
             }
         };
@@ -75,7 +112,6 @@ createApp({
             currentView.value = 'home';
         };
 
-        // --- Blog Methods ---
         const fetchPosts = async () => {
             loading.value = true;
             try {
@@ -102,12 +138,10 @@ createApp({
             errorMessage.value = '';
         };
 
-        // Initial Load
         onMounted(() => {
             fetchPosts();
         });
 
-        // --- RETURN EVERYTHING ---
         return {
             currentView,
             posts,
@@ -115,13 +149,16 @@ createApp({
             errorMessage,
             token,
             user,
-            // Forms
             loginForm,
             registerForm,
-            // Methods
+            postForm,
+            creatingPost,
+            uploadingImage, 
             setView,
             handleLogin,
             handleRegister,
+            handleCreatePost,
+            handleImageUpload, 
             logout,
             fetchPosts,
             formatDate,
