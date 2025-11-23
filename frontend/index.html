@@ -4,28 +4,46 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Multi-Tenant Blog</title>
+    
+    <!-- Tailwind CSS -->
     <script src="https://cdn.tailwindcss.com"></script>
+    <!-- Typography Plugin for better markdown styling -->
+    <script src="https://cdn.tailwindcss.com?plugins=typography"></script>
+    
+    <!-- Vue 3 -->
     <script src="https://unpkg.com/vue@3/dist/vue.global.js"></script>
+    
+    <!-- Axios -->
     <script src="https://cdn.jsdelivr.net/npm/axios/dist/axios.min.js"></script>
-    <style>[v-cloak] { display: none; } body { cursor: default; } a, button { cursor: pointer; }</style>
+    
+    <!-- Marked.js -->
+    <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
+
+    <style>
+        [v-cloak] { display: none; } 
+        body { cursor: default; } 
+        a, button { cursor: pointer; }
+        /* Markdown Image Fix */
+        .prose img { margin: 1rem auto; border-radius: 8px; max-height: 500px; }
+    </style>
 </head>
-<body class="bg-gray-100 text-gray-800">
+<body class="bg-gray-100 text-gray-800 font-sans">
     
     <div id="app" v-cloak>
         <!-- NAV -->
         <nav class="bg-white shadow mb-8 sticky top-0 z-50">
             <div class="container mx-auto px-4 py-4 flex justify-between items-center">
-                <a @click="setView('home')" class="text-xl font-bold text-blue-600">Blog Platform</a>
+                <a @click="setView('home')" class="text-xl font-bold text-blue-600 hover:text-blue-800 transition">Blog Platform</a>
                 
                 <div class="flex items-center space-x-4">
                     <template v-if="!token">
-                        <a @click="setView('login')" class="text-gray-600 hover:text-blue-600">Login</a>
-                        <a @click="setView('register')" class="bg-blue-600 text-white px-4 py-2 rounded hover:bg-blue-700">Get Started</a>
+                        <a @click="setView('login')" class="text-gray-600 hover:text-blue-600 font-medium">Login</a>
+                        <a @click="setView('register')" class="bg-blue-600 text-white px-4 py-2 rounded hover:bg-blue-700 transition shadow">Get Started</a>
                     </template>
                     <template v-else>
-                        <span class="text-sm text-gray-500 hidden md:inline">Hi, {{ user?.username }}</span>
-                        <a @click="setView('dashboard')" class="text-gray-600 hover:text-blue-600">Dashboard</a>
-                        <a @click="logout" class="text-red-500 hover:text-red-700">Logout</a>
+                        <span class="text-sm text-gray-500 hidden md:inline font-medium">Hi, {{ user?.username }}</span>
+                        <a @click="setView('dashboard')" class="text-gray-600 hover:text-blue-600 font-medium">Dashboard</a>
+                        <a @click="logout" class="text-red-500 hover:text-red-700 border border-red-200 px-3 py-1 rounded hover:bg-red-50 transition">Logout</a>
                     </template>
                 </div>
             </div>
@@ -34,118 +52,147 @@
         <!-- CONTENT -->
         <div class="container mx-auto px-4 pb-12">
             
-            <!-- HOME -->
+            <!-- 1. HOME VIEW -->
             <div v-if="currentView === 'home'">
-                <div class="flex justify-between items-end mb-6">
-                    <h1 class="text-3xl font-bold">Latest Posts</h1>
-                    <button @click="fetchPosts" class="text-blue-500 text-sm">Refresh</button>
+                <div class="flex justify-between items-end mb-8">
+                    <h1 class="text-3xl font-bold text-gray-900">Latest Posts</h1>
+                    <button @click="fetchPosts" class="text-blue-600 text-sm hover:underline">Refresh</button>
                 </div>
                 
-                <div v-if="loading">Loading...</div>
-                <div v-else-if="posts.length === 0" class="text-gray-500">No posts found.</div>
+                <div v-if="loading" class="text-center py-12 text-gray-500">Loading posts...</div>
+                <div v-else-if="posts.length === 0" class="text-center py-12 bg-white rounded shadow text-gray-500">No posts found. Be the first to write one!</div>
                 
-                <div v-else class="grid md:grid-cols-3 gap-6">
-                    <div v-for="post in posts" :key="post.id" class="bg-white p-6 rounded shadow hover:shadow-lg transition">
-                        <h2 class="text-xl font-bold">{{ post.title }}</h2>
-                        <p class="text-sm text-gray-500 mb-2">By {{ post.author }}</p>
-                        <p>{{ post.content.substring(0, 100) }}...</p>
+                <div v-else class="grid md:grid-cols-2 lg:grid-cols-3 gap-8">
+                    <div v-for="post in posts" :key="post.id" class="bg-white p-6 rounded-xl shadow-sm hover:shadow-md transition duration-300 border border-gray-100 flex flex-col h-full">
+                        <div class="flex-grow">
+                            <h2 class="text-xl font-bold mb-3 text-gray-800 line-clamp-2">{{ post.title }}</h2>
+                            <div class="flex justify-between text-xs text-gray-400 mb-4">
+                                <span>@{{ post.author }}</span>
+                                <span>{{ formatDate(post.timestamp) }}</span>
+                            </div>
+                            <!-- Show truncated plain text -->
+                            <p class="text-gray-600 text-sm line-clamp-3 leading-relaxed">
+                                {{ post.content.replace(/[#*_`]/g, '').substring(0, 120) }}...
+                            </p>
+                        </div>
+                        <button @click="viewPost(post)" class="mt-6 w-full text-center border border-blue-100 bg-blue-50 text-blue-600 py-2 rounded-lg hover:bg-blue-100 transition font-medium text-sm">
+                            Read More
+                        </button>
                     </div>
                 </div>
             </div>
 
-            <!-- LOGIN -->
-            <div v-if="currentView === 'login'" class="max-w-md mx-auto bg-white p-8 rounded shadow mt-10">
-                <h2 class="text-2xl font-bold mb-6 text-center">Login</h2>
+            <!-- 2. SINGLE POST VIEW -->
+            <div v-if="currentView === 'post' && selectedPost" class="max-w-4xl mx-auto bg-white p-8 md:p-12 rounded-xl shadow-lg">
+                <button @click="setView('home')" class="mb-8 text-gray-500 hover:text-blue-600 flex items-center transition group">
+                    <span class="mr-2 group-hover:-translate-x-1 transition transform">&larr;</span> Back to Posts
+                </button>
+                
+                <header class="mb-8 border-b pb-6">
+                    <h1 class="text-3xl md:text-5xl font-extrabold text-gray-900 mb-4 leading-tight">{{ selectedPost.title }}</h1>
+                    <div class="flex items-center text-gray-500 text-sm">
+                        <span class="font-semibold text-gray-700 mr-2">By {{ selectedPost.author }}</span>
+                        <span class="mx-2">•</span>
+                        <span>{{ formatDate(selectedPost.timestamp) }}</span>
+                    </div>
+                </header>
+                
+                <!-- Markdown Content -->
+                <article class="prose prose-lg prose-blue max-w-none" v-html="renderMarkdown(selectedPost.content)">
+                </article>
+            </div>
+
+            <!-- 3. LOGIN VIEW -->
+            <div v-if="currentView === 'login'" class="max-w-md mx-auto bg-white p-8 rounded-xl shadow-lg mt-12">
+                <h2 class="text-2xl font-bold mb-6 text-center text-gray-800">Welcome Back</h2>
                 <form @submit.prevent="handleLogin">
                     <div class="mb-4">
-                        <label class="block mb-2 text-sm font-bold">Username</label>
-                        <input v-model="loginForm.username" type="text" class="w-full border p-2 rounded" required>
+                        <label class="block mb-2 text-sm font-semibold text-gray-700">Username</label>
+                        <input v-model="loginForm.username" type="text" class="w-full border border-gray-300 p-3 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none transition" required>
                     </div>
                     <div class="mb-6">
-                        <label class="block mb-2 text-sm font-bold">Password</label>
-                        <input v-model="loginForm.password" type="password" class="w-full border p-2 rounded" required>
+                        <label class="block mb-2 text-sm font-semibold text-gray-700">Password</label>
+                        <input v-model="loginForm.password" type="password" class="w-full border border-gray-300 p-3 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none transition" required>
                     </div>
-                    <button type="submit" class="w-full bg-blue-600 text-white py-2 rounded hover:bg-blue-700">Sign In</button>
+                    <button type="submit" class="w-full bg-blue-600 text-white font-bold py-3 rounded-lg hover:bg-blue-700 transition shadow-md hover:shadow-lg transform active:scale-95">Sign In</button>
                     
-                    <p v-if="errorMessage" class="mt-4 text-red-500 text-center text-sm">{{ errorMessage }}</p>
-                    <div class="mt-4 text-center text-sm">
-                        <a @click="setView('register')" class="text-blue-500">Create an account</a>
+                    <p v-if="errorMessage" class="mt-4 p-3 bg-red-50 text-red-600 text-center text-sm rounded border border-red-100">{{ errorMessage }}</p>
+                    <div class="mt-6 text-center text-sm">
+                        <span class="text-gray-500">New here? </span>
+                        <a @click="setView('register')" class="text-blue-600 font-semibold hover:underline">Create an account</a>
                     </div>
                 </form>
             </div>
 
-            <!-- REGISTER -->
-            <div v-if="currentView === 'register'" class="max-w-md mx-auto bg-white p-8 rounded shadow mt-10">
-                <h2 class="text-2xl font-bold mb-6 text-center">Register</h2>
+            <!-- 4. REGISTER VIEW -->
+            <div v-if="currentView === 'register'" class="max-w-md mx-auto bg-white p-8 rounded-xl shadow-lg mt-12">
+                <h2 class="text-2xl font-bold mb-6 text-center text-gray-800">Join Us</h2>
                 <form @submit.prevent="handleRegister">
                     <div class="mb-4">
-                        <label class="block mb-2 text-sm font-bold">Username</label>
-                        <input v-model="registerForm.username" type="text" class="w-full border p-2 rounded" required>
+                        <label class="block mb-2 text-sm font-semibold text-gray-700">Username</label>
+                        <input v-model="registerForm.username" type="text" class="w-full border border-gray-300 p-3 rounded-lg focus:ring-2 focus:ring-green-500 outline-none transition" required>
                     </div>
                     <div class="mb-4">
-                        <label class="block mb-2 text-sm font-bold">Email</label>
-                        <input v-model="registerForm.email" type="email" class="w-full border p-2 rounded" required>
+                        <label class="block mb-2 text-sm font-semibold text-gray-700">Email</label>
+                        <input v-model="registerForm.email" type="email" class="w-full border border-gray-300 p-3 rounded-lg focus:ring-2 focus:ring-green-500 outline-none transition" required>
                     </div>
                     <div class="mb-6">
-                        <label class="block mb-2 text-sm font-bold">Password</label>
-                        <input v-model="registerForm.password" type="password" class="w-full border p-2 rounded" required>
+                        <label class="block mb-2 text-sm font-semibold text-gray-700">Password</label>
+                        <input v-model="registerForm.password" type="password" class="w-full border border-gray-300 p-3 rounded-lg focus:ring-2 focus:ring-green-500 outline-none transition" required>
                     </div>
-                    <button type="submit" class="w-full bg-green-600 text-white py-2 rounded hover:bg-green-700">Sign Up</button>
+                    <button type="submit" class="w-full bg-green-600 text-white font-bold py-3 rounded-lg hover:bg-green-700 transition shadow-md hover:shadow-lg transform active:scale-95">Sign Up</button>
                     
-                    <p v-if="errorMessage" class="mt-4 text-red-500 text-center text-sm">{{ errorMessage }}</p>
-                    <div class="mt-4 text-center text-sm">
-                        <a @click="setView('login')" class="text-blue-500">Already have an account?</a>
+                    <p v-if="errorMessage" class="mt-4 p-3 bg-red-50 text-red-600 text-center text-sm rounded border border-red-100">{{ errorMessage }}</p>
+                    <div class="mt-6 text-center text-sm">
+                        <span class="text-gray-500">Already have an account? </span>
+                        <a @click="setView('login')" class="text-blue-600 font-semibold hover:underline">Login</a>
                     </div>
                 </form>
             </div>
 
-            <!-- DASHBOARD -->
-	                <!-- DASHBOARD VIEW -->
+            <!-- 5. DASHBOARD VIEW -->
             <div v-if="currentView === 'dashboard'" class="max-w-4xl mx-auto">
                 <div class="flex justify-between items-center mb-8">
-                    <h1 class="text-3xl font-bold">Dashboard</h1>
-                    <span class="text-gray-600">Welcome, {{ user?.username }}</span>
+                    <h1 class="text-3xl font-bold text-gray-800">Dashboard</h1>
+                    <span class="bg-blue-100 text-blue-800 py-1 px-3 rounded-full text-sm font-medium">{{ user?.username }}</span>
                 </div>
 
                 <!-- Create Post Form -->
-                <div class="bg-white p-6 rounded shadow mb-8">
-                    <h2 class="text-xl font-bold mb-4">Write a New Post</h2>
+                <div class="bg-white p-6 md:p-8 rounded-xl shadow-md mb-8 border border-gray-100">
+                    <h2 class="text-xl font-bold mb-6 text-gray-800 flex items-center">
+                        <span class="mr-2">✏️</span> Write a New Post
+                    </h2>
                     <form @submit.prevent="handleCreatePost">
-                        <div class="mb-4">
-                            <label class="block text-sm font-bold mb-2">Title</label>
-                            <input v-model="postForm.title" type="text" class="w-full border p-2 rounded focus:outline-none focus:border-blue-500" placeholder="Enter post title..." required>
+                        <div class="mb-6">
+                            <label class="block text-sm font-bold mb-2 text-gray-700">Title</label>
+                            <input v-model="postForm.title" type="text" class="w-full border border-gray-300 p-3 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none transition" placeholder="Enter an engaging title..." required>
                         </div>
-
-                        <div class="mb-4">
-                            <label class="block text-sm font-bold mb-2">Content (Markdown supported)</label>
+                        
+                        <div class="mb-6">
+                            <div class="flex justify-between items-center mb-2">
+                                <label class="block text-sm font-bold text-gray-700">Content</label>
+                                <span class="text-xs text-gray-400 bg-gray-100 px-2 py-1 rounded">Markdown Supported</span>
+                            </div>
                             
-                            <!-- Image Upload Button -->
-                            <div class="mb-2">
-                                <label class="cursor-pointer bg-gray-200 hover:bg-gray-300 text-gray-700 px-4 py-1 rounded text-sm inline-flex items-center transition">
-                                    <span>📷 Upload Image</span>
+                            <!-- Image Upload -->
+                            <div class="mb-3">
+                                <label class="cursor-pointer bg-gray-100 hover:bg-gray-200 text-gray-700 px-4 py-2 rounded-lg text-sm inline-flex items-center transition border border-gray-200">
+                                    <span class="mr-2">📷</span> Upload Image
                                     <input type="file" @change="handleImageUpload" class="hidden" accept="image/*">
                                 </label>
-                                <span v-if="uploadingImage" class="text-sm text-blue-500 ml-2">Uploading...</span>
+                                <span v-if="uploadingImage" class="text-sm text-blue-600 ml-3 animate-pulse font-medium">Uploading image...</span>
                             </div>
 
-                            <textarea v-model="postForm.content" rows="8" class="w-full border p-2 rounded focus:outline-none focus:border-blue-500 font-mono" placeholder="Write your thoughts..." required></textarea>
+                            <textarea v-model="postForm.content" rows="10" class="w-full border border-gray-300 p-4 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none font-mono text-sm transition" placeholder="Write your story here... Use **bold** for emphasis." required></textarea>
                         </div>
 
-
-                        <div class="flex justify-between items-center">
-                            <button type="submit" class="bg-blue-600 text-white px-6 py-2 rounded hover:bg-blue-700 transition">
-                                Publish Post
+                        <div class="flex justify-end items-center">
+                            <button type="submit" :disabled="creatingPost" class="bg-blue-600 text-white px-8 py-3 rounded-lg hover:bg-blue-700 transition font-bold shadow-md disabled:opacity-50 disabled:cursor-not-allowed flex items-center">
+                                <span v-if="creatingPost" class="mr-2">⏳</span>
+                                {{ creatingPost ? 'Publishing...' : 'Publish Post' }}
                             </button>
-                            <!-- Loading Indicator -->
-                            <span v-if="creatingPost" class="text-gray-500 text-sm">Publishing...</span>
                         </div>
                     </form>
-                </div>
-
-                <!-- User's Posts List (Placeholder for next step) -->
-                <div class="bg-white p-6 rounded shadow">
-                    <h2 class="text-xl font-bold mb-4">Your Recent Posts</h2>
-                    <p class="text-gray-500">List of your posts will appear here.</p>
                 </div>
             </div>
 
