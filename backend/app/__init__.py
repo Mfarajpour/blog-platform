@@ -1,10 +1,12 @@
 from flask import Flask, jsonify
 from .config import config
 from .extensions import db, migrate
+from flask_cors import CORS
 
 def create_app(config_name='default'):
     app = Flask(__name__)
-    
+    CORS(app)
+
     app.config.from_object(config[config_name])
     
     db.init_app(app)

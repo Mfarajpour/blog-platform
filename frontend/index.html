@@ -1,0 +1,78 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Multi-Tenant Blog Platform</title>
+    
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    
+    <!-- Vue 3 -->
+    <script src="https://unpkg.com/vue@3/dist/vue.global.js"></script>
+    
+    <!-- Axios -->
+    <script src="https://cdn.jsdelivr.net/npm/axios/dist/axios.min.js"></script>
+    
+    <!-- Marked.js for Markdown Rendering -->
+    <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
+
+    <style>
+        [v-cloak] { display: none; }
+        .markdown-body img { max-width: 100%; }
+    </style>
+</head>
+<body class="bg-gray-100 text-gray-800">
+    
+    <div id="app" v-cloak>
+        <!-- Navigation -->
+        <nav class="bg-white shadow mb-8">
+            <div class="container mx-auto px-4 py-4 flex justify-between items-center">
+                <a href="#" @click="currentView = 'home'" class="text-xl font-bold text-blue-600">Blog Platform</a>
+                
+                <div>
+                    <template v-if="!token">
+                        <a href="#" @click="currentView = 'login'" class="mr-4 hover:text-blue-600">Login</a>
+                        <a href="#" @click="currentView = 'register'" class="bg-blue-600 text-white px-4 py-2 rounded hover:bg-blue-700">Get Started</a>
+                    </template>
+                    <template v-else>
+                        <span class="mr-4 text-gray-600">Welcome, {{ user?.username }}</span>
+                        <a href="#" @click="currentView = 'dashboard'" class="mr-4 hover:text-blue-600">Dashboard</a>
+                        <a href="#" @click="logout" class="text-red-500 hover:text-red-700">Logout</a>
+                    </template>
+                </div>
+            </div>
+        </nav>
+
+        <!-- Main Content Area -->
+        <div class="container mx-auto px-4">
+            
+            <!-- Home View (Public Posts) -->
+            <div v-if="currentView === 'home'">
+                <h1 class="text-3xl font-bold mb-6">Latest Posts</h1>
+                <div v-if="loading" class="text-center">Loading...</div>
+                
+                <div v-else class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                    <div v-for="post in posts" :key="post.id" class="bg-white p-6 rounded shadow hover:shadow-lg transition">
+                        <h2 class="text-xl font-bold mb-2">{{ post.title }}</h2>
+                        <p class="text-gray-500 text-sm mb-4">By {{ post.author }} on {{ formatDate(post.timestamp) }}</p>
+                        <p class="text-gray-700 truncate">{{ post.content.substring(0, 100) }}...</p>
+                        <button @click="viewPost(post)" class="mt-4 text-blue-600 hover:underline">Read More</button>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Placeholder for other views -->
+            <div v-if="currentView === 'login'">
+                <h2 class="text-2xl">Login Page (Coming Soon)</h2>
+            </div>
+             <div v-if="currentView === 'register'">
+                <h2 class="text-2xl">Register Page (Coming Soon)</h2>
+            </div>
+        </div>
+    </div>
+
+    <!-- App Logic -->
+    <script src="js/app.js"></script>
+</body>
+</html>
