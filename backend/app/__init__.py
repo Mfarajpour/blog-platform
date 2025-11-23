@@ -5,20 +5,20 @@ from .extensions import db, migrate
 def create_app(config_name='default'):
     app = Flask(__name__)
     
-    # Load Config
     app.config.from_object(config[config_name])
     
-    # Initialize Extensions
     db.init_app(app)
     migrate.init_app(app, db)
 
-    from . import models 
+    from . import models
+    
+    # Register Blueprints
+    from .auth import auth_bp
+    app.register_blueprint(auth_bp, url_prefix='/auth')
 
-    # Health Check Route
     @app.route('/health')
     def health_check():
         try:
-            # Check DB Connection
             db.session.execute(db.text('SELECT 1'))
             return jsonify({'status': 'healthy', 'db': 'connected'}), 200
         except Exception as e:
