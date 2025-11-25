@@ -1,0 +1,45 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: backend-service
+  namespace: blog-ops
+spec:
+  ports:
+    - port: 5000
+      targetPort: 5000
+  selector:
+    app: backend
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: backend
+  namespace: blog-ops
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: backend
+  template:
+    metadata:
+      labels:
+        app: backend
+    spec:
+      containers:
+        - name: backend
+          image: blog-backend:v2
+          imagePullPolicy: Never  # Important for local k3s image
+          ports:
+            - containerPort: 5000
+          envFrom:
+            - configMapRef:
+                name: blog-config
+            - secretRef:
+                name: blog-secrets
+          # Add readiness probe to check if app is up
+          readinessProbe:
+            httpGet:
+              path: /health
+              port: 5000
+            initialDelaySeconds: 5
+            periodSeconds: 10
