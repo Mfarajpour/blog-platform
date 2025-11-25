@@ -1,8 +1,12 @@
 #!/bin/sh
 
-echo "Waiting for postgres..."
-while ! nc -z db 5432; do
-  sleep 0.1
+# Extract host from DATABASE_URL or default to postgres-service
+# Simple logic: assume we are in k8s environment now
+DB_HOST="postgres-service"
+
+echo "Waiting for postgres at $DB_HOST..."
+while ! nc -z $DB_HOST 5432; do
+  sleep 1
 done
 echo "PostgreSQL started"
 
