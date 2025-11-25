@@ -1,6 +1,6 @@
 const { createApp, ref, reactive, onMounted } = Vue;
 
-const API_URL = 'http://91.107.243.217:5000'; 
+const API_URL = 'http://blog.91.107.243.217.nip.io'; 
 
 createApp({
     setup() {
