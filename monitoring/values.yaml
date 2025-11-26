@@ -1,0 +1,21 @@
+grafana:
+  adminPassword: "admin"
+  ingress:
+    enabled: true
+    ingressClassName: traefik
+    hosts:
+      - grafana.91.107.243.217.nip.io
+    path: "/"
+  persistence:
+    enabled: true
+    size: 5Gi
+
+prometheus:
+  prometheusSpec:
+    storageSpec:
+      volumeClaimTemplate:
+        spec:
+          accessModes: ["ReadWriteOnce"]
+          resources:
+            requests:
+              storage: 5Gi
