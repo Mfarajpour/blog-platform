@@ -27,7 +27,7 @@ tests:
 # 2. Build Stage (Dev)
 build-push-dev:
   stage: build
-  image: docker:24
+  image: docker:27
   services:
     - docker:24-dind
   before_script:
