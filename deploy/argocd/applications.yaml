@@ -1,0 +1,60 @@
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: blog-dev
+  namespace: argocd
+spec:
+  project: default
+  source:
+    repoURL: 'http://87.248.154.24/root/blog-platform.git'
+    targetRevision: develop
+    path: deploy/overlays/dev
+  destination:
+    server: 'https://kubernetes.default.svc'
+    namespace: app-dev
+  syncPolicy:
+    automated:
+      prune: true
+      selfHeal: true
+    syncOptions:
+      - CreateNamespace=true
+---
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: blog-stage
+  namespace: argocd
+spec:
+  project: default
+  source:
+    repoURL: 'http://87.248.154.24/root/blog-platform.git'
+    targetRevision: develop
+    path: deploy/overlays/stage
+  destination:
+    server: 'https://kubernetes.default.svc'
+    namespace: app-stage
+  syncPolicy:
+    automated:
+      prune: true
+      selfHeal: true
+    syncOptions:
+      - CreateNamespace=true
+---
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: blog-prod
+  namespace: argocd
+spec:
+  project: default
+  source:
+    repoURL: 'http://87.248.154.24/root/blog-platform.git'
+    targetRevision: main
+    path: deploy/overlays/prod
+  destination:
+    server: 'https://kubernetes.default.svc'
+    namespace: app-prod
+  syncPolicy:
+    automated: null # Manual Sync
+    syncOptions:
+      - CreateNamespace=true

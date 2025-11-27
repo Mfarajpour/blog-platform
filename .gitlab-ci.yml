@@ -1,0 +1,98 @@
+stages:
+  - test
+  - build
+  - deploy-dev
+  - promote-stage
+  - release-prod
+
+variables:
+  BACKEND_IMAGE: $CI_REGISTRY_IMAGE/backend
+  FRONTEND_IMAGE: $CI_REGISTRY_IMAGE/frontend
+  # Kustomize Image for modifying manifests
+  KUSTOMIZE_IMAGE: line/kubectl-kustomize:latest
+
+# 1. Test Stage
+tests:
+  stage: test
+  image: python:3.11-slim
+  script:
+    - pip install -r backend/requirements.txt
+    - echo "Running tests..." 
+  rules:
+    - if: $CI_PIPELINE_SOURCE == 'merge_request_event'
+
+# 2. Build Stage (Dev)
+build-push-dev:
+  stage: build
+  image: docker:24
+  services:
+    - docker:24-dind
+  before_script:
+    - docker login -u $CI_REGISTRY_USER -p $CI_REGISTRY_PASSWORD $CI_REGISTRY
+  script:
+    - docker build -t $BACKEND_IMAGE:$CI_COMMIT_SHORT_SHA ./backend
+    - docker push $BACKEND_IMAGE:$CI_COMMIT_SHORT_SHA
+    - docker build -t $FRONTEND_IMAGE:$CI_COMMIT_SHORT_SHA ./frontend
+    - docker push $FRONTEND_IMAGE:$CI_COMMIT_SHORT_SHA
+  rules:
+    - if: $CI_COMMIT_BRANCH == "develop"
+
+# 3. Deploy to DEV (Auto)
+update-dev-manifests:
+  stage: deploy-dev
+  image: $KUSTOMIZE_IMAGE
+  needs: ["build-push-dev"]
+  script:
+    - git config --global user.email "ci@gitlab.com"
+    - git config --global user.name "CI Bot"
+    - git remote set-url origin https://oauth2:${CI_PUSH_TOKEN}@${CI_SERVER_HOST}/${CI_PROJECT_PATH}.git
+    - git fetch origin
+    - git checkout develop
+    - cd deploy/overlays/dev
+    - kustomize edit set image blog-backend=$BACKEND_IMAGE:$CI_COMMIT_SHORT_SHA
+    - kustomize edit set image blog-frontend=$FRONTEND_IMAGE:$CI_COMMIT_SHORT_SHA
+    - git commit -am "chore(dev): update images to $CI_COMMIT_SHORT_SHA [skip ci]"
+    - git push origin develop
+  rules:
+    - if: $CI_COMMIT_BRANCH == "develop"
+
+# 4. Promote to STAGE (Manual)
+promote-to-stage:
+  stage: promote-stage
+  image: $KUSTOMIZE_IMAGE
+  script:
+    - git config --global user.email "ci@gitlab.com"
+    - git config --global user.name "CI Bot"
+    - git remote set-url origin https://oauth2:${CI_PUSH_TOKEN}@${CI_SERVER_HOST}/${CI_PROJECT_PATH}.git
+    - git fetch origin
+    - git checkout develop
+    - cd deploy/overlays/stage
+    - kustomize edit set image blog-backend=$BACKEND_IMAGE:$CI_COMMIT_SHORT_SHA
+    - kustomize edit set image blog-frontend=$FRONTEND_IMAGE:$CI_COMMIT_SHORT_SHA
+    - git commit -am "chore(stage): promote to $CI_COMMIT_SHORT_SHA [skip ci]"
+    - git push origin develop
+  when: manual
+  rules:
+    - if: $CI_COMMIT_BRANCH == "develop"
+
+# 5. Release to PROD (Tag Trigger)
+release-to-prod:
+  stage: release-prod
+  image: $KUSTOMIZE_IMAGE
+  script:
+    - git config --global user.email "ci@gitlab.com"
+    - git config --global user.name "CI Bot"
+    - git remote set-url origin https://oauth2:${CI_PUSH_TOKEN}@${CI_SERVER_HOST}/${CI_PROJECT_PATH}.git
+    - git fetch origin
+    - git checkout main
+    - git pull origin main
+    - cd deploy/overlays/prod
+    # In real scenario, we should build a specific TAG image, but here we reuse SHA for simplicity or use TAG if built
+    # Assuming we want to deploy the commit that was tagged
+    - kustomize edit set image blog-backend=$BACKEND_IMAGE:$CI_COMMIT_SHA
+    - kustomize edit set image blog-frontend=$FRONTEND_IMAGE:$CI_COMMIT_SHA
+    - git commit -am "chore(prod): release version $CI_COMMIT_TAG [skip ci]"
+    - git push origin main
+  when: manual
+  rules:
+    - if: $CI_COMMIT_TAG

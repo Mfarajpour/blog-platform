@@ -1,0 +1,48 @@
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+
+resources:
+  - ../../base
+
+namespace: app-dev
+
+
+images:
+  - name: blog-backend
+    newTag: latest
+  - name: blog-frontend
+    newTag: latest
+
+patches:
+  # 1. Ingress Host
+  - target:
+      kind: Ingress
+      name: blog-ingress
+    patch: |-
+      - op: replace
+        path: /spec/rules/0/host
+        value: dev.app.91.107.243.217.nip.io
+  
+  # 2. Backend Replicas & Resources
+  - target:
+      kind: Deployment
+      name: backend
+    patch: |-
+      - op: replace
+        path: /spec/replicas
+        value: 1
+      - op: replace
+        path: /spec/template/spec/containers/0/resources
+        value:
+          requests:
+            cpu: 100m
+            memory: 128Mi
+            
+  # 3. MinIO Ingress Host (Optional)
+  - target:
+      kind: Ingress
+      name: blog-ingress
+    patch: |-
+      - op: replace
+        path: /spec/rules/1/host
+        value: dev.minio.91.107.243.217.nip.io

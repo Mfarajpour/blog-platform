@@ -1,0 +1,42 @@
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+
+resources:
+  - ../../base
+
+namespace: app-stage
+
+images:
+  - name: blog-backend
+    newTag: latest
+  - name: blog-frontend
+    newTag: latest
+
+patches:
+  - target:
+      kind: Ingress
+      name: blog-ingress
+    patch: |-
+      - op: replace
+        path: /spec/rules/0/host
+        value: stage.app.91.107.243.217.nip.io
+  - target:
+      kind: Deployment
+      name: backend
+    patch: |-
+      - op: replace
+        path: /spec/replicas
+        value: 2
+      - op: replace
+        path: /spec/template/spec/containers/0/resources
+        value:
+          requests:
+            cpu: 200m
+            memory: 256Mi
+  - target:
+      kind: Ingress
+      name: blog-ingress
+    patch: |-
+      - op: replace
+        path: /spec/rules/1/host
+        value: stage.minio.91.107.243.217.nip.io
