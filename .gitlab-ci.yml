@@ -8,8 +8,11 @@ stages:
 variables:
   BACKEND_IMAGE: $CI_REGISTRY_IMAGE/backend
   FRONTEND_IMAGE: $CI_REGISTRY_IMAGE/frontend
-  # Kustomize Image for modifying manifests
+  # Kustomize Image
   KUSTOMIZE_IMAGE: line/kubectl-kustomize:latest
+  # Git Strategy
+  GIT_STRATEGY: clone
+  GIT_DEPTH: 0
 
 # 1. Test Stage
 tests:
@@ -45,13 +48,13 @@ update-dev-manifests:
   script:
     - git config --global user.email "ci@gitlab.com"
     - git config --global user.name "CI Bot"
-    - git remote set-url origin https://oauth2:${CI_PUSH_TOKEN}@${CI_SERVER_HOST}/${CI_PROJECT_PATH}.git
+    - 'git remote set-url origin https://oauth2:${CI_PUSH_TOKEN}@${CI_SERVER_HOST}/${CI_PROJECT_PATH}.git'
     - git fetch origin
     - git checkout develop
     - cd deploy/overlays/dev
     - kustomize edit set image blog-backend=$BACKEND_IMAGE:$CI_COMMIT_SHORT_SHA
     - kustomize edit set image blog-frontend=$FRONTEND_IMAGE:$CI_COMMIT_SHORT_SHA
-    - git commit -am "chore(dev): update images to $CI_COMMIT_SHORT_SHA [skip ci]"
+    - 'git commit -am "chore(dev): update images to $CI_COMMIT_SHORT_SHA [skip ci]"'
     - git push origin develop
   rules:
     - if: $CI_COMMIT_BRANCH == "develop"
@@ -63,13 +66,13 @@ promote-to-stage:
   script:
     - git config --global user.email "ci@gitlab.com"
     - git config --global user.name "CI Bot"
-    - git remote set-url origin https://oauth2:${CI_PUSH_TOKEN}@${CI_SERVER_HOST}/${CI_PROJECT_PATH}.git
+    - 'git remote set-url origin https://oauth2:${CI_PUSH_TOKEN}@${CI_SERVER_HOST}/${CI_PROJECT_PATH}.git'
     - git fetch origin
     - git checkout develop
     - cd deploy/overlays/stage
     - kustomize edit set image blog-backend=$BACKEND_IMAGE:$CI_COMMIT_SHORT_SHA
     - kustomize edit set image blog-frontend=$FRONTEND_IMAGE:$CI_COMMIT_SHORT_SHA
-    - git commit -am "chore(stage): promote to $CI_COMMIT_SHORT_SHA [skip ci]"
+    - 'git commit -am "chore(stage): promote to $CI_COMMIT_SHORT_SHA [skip ci]"'
     - git push origin develop
   when: manual
   rules:
@@ -82,16 +85,15 @@ release-to-prod:
   script:
     - git config --global user.email "ci@gitlab.com"
     - git config --global user.name "CI Bot"
-    - git remote set-url origin https://oauth2:${CI_PUSH_TOKEN}@${CI_SERVER_HOST}/${CI_PROJECT_PATH}.git
+    - 'git remote set-url origin https://oauth2:${CI_PUSH_TOKEN}@${CI_SERVER_HOST}/${CI_PROJECT_PATH}.git'
     - git fetch origin
     - git checkout main
     - git pull origin main
     - cd deploy/overlays/prod
-    # In real scenario, we should build a specific TAG image, but here we reuse SHA for simplicity or use TAG if built
-    # Assuming we want to deploy the commit that was tagged
+    
     - kustomize edit set image blog-backend=$BACKEND_IMAGE:$CI_COMMIT_SHA
     - kustomize edit set image blog-frontend=$FRONTEND_IMAGE:$CI_COMMIT_SHA
-    - git commit -am "chore(prod): release version $CI_COMMIT_TAG [skip ci]"
+    - 'git commit -am "chore(prod): release version $CI_COMMIT_TAG [skip ci]"'
     - git push origin main
   when: manual
   rules:
